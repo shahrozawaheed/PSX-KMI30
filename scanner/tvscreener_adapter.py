@@ -1,7 +1,7 @@
 import pandas as pd
 from tvscreener import StockScreener, StockField
 
-def fetch_screener_data():
+def fetch_universe():
     """Fetches market data from TradingView for Pakistan stocks."""
     ss = StockScreener()
     
