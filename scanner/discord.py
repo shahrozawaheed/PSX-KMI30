@@ -1,29 +1,41 @@
 import os
 import requests
 
+def send_discord_alerts(alerts):
+    """Sends list of formatted strategy alerts to Discord webhook."""
+    webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
+    
+    if not webhook_url:
+        print("Warning: DISCORD_WEBHOOK_URL environment variable is not set.")
+        return
 
-def format_signal(s):
-    return (
-        f"**{s.signal}**\n\n"
-        f"**{s.symbol}**\n"
-        f"{s.name}\n\n"
-        f"Price: {s.price:.2f}\n"
-        f"RSI: {s.rsi:.2f}\n"
-        f"50 SMA: {s.sma50:.2f}\n"
-        f"200 SMA: {s.sma200:.2f}\n"
-        f"Supertrend: {s.supertrend.upper()}\n"
-        f"Volume: {s.volume:,.0f}\n\n"
-        f"**Conditions met:**\n" + "\n".join(f"• {x}" for x in s.reasons) +
-        f"\n\nTimeframe: 1D\n"
-        f"PSX Company Page: {s.url}"
-    )
+    if not alerts:
+        print("No strategy triggers detected. Skipping Discord notification.")
+        return
 
+    embeds = []
+    for item in alerts:
+        color = 3066993 if "🟢" in item["reason"] else 15158332
+        embeds.append({
+            "title": f"PSX KMI-30 Alert: {item['ticker']}",
+            "color": color,
+            "fields": [
+                {"name": "Trigger Reason", "value": item["reason"], "inline": False},
+                {"name": "Price (PKR)", "value": f"{item['price']:.2f}", "inline": True},
+                {"name": "Change", "value": f"{item['change']:.2f}%", "inline": True},
+                {"name": "RSI (14)", "value": f"{item['rsi']:.2f}", "inline": True},
+                {"name": "Trend Context", "value": str(item.get("trend", "N/A")), "inline": True}
+            ],
+            "footer": {"text": "PSX KMI-30 Automated Screener Bot"}
+        })
 
-def send(signals):
-    webhook=os.environ.get("DISCORD_WEBHOOK_URL")
-    if not webhook:
-        raise RuntimeError("DISCORD_WEBHOOK_URL secret is not set.")
+    payload = {
+        "username": "PSX KMI-30 Bot",
+        "embeds": embeds
+    }
 
-    for s in signals:
-        r=requests.post(webhook, json={"content": format_signal(s)}, timeout=20)
-        r.raise_for_status()
+    res = requests.post(webhook_url, json=payload)
+    if res.status_code == 204:
+        print(f"Successfully sent {len(alerts)} alert(s) to Discord.")
+    else:
+        print(f"Failed to post alert: HTTP {res.status_code} - {res.text}")
