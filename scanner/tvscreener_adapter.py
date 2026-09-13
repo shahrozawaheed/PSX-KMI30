@@ -5,9 +5,8 @@ def fetch_universe():
     """Fetches market data from TradingView for Pakistan stocks."""
     ss = StockScreener()
     
-    # Request fields
+    # Request available fields from StockField
     ss.select(
-        StockField.TICKER,
         StockField.NAME,
         StockField.PRICE,
         StockField.CHANGE_PERCENT,
@@ -36,7 +35,7 @@ def normalize(df, target_tickers=None):
             column_mapping[col] = "SMA50"
         elif "Simple Moving Average (200)" in col:
             column_mapping[col] = "SMA200"
-        elif col in ["Symbol", "Ticker"]:
+        elif col in ["Symbol", "Name", "Ticker"]:
             column_mapping[col] = "Ticker"
         elif "Change" in col:
             column_mapping[col] = "Change"
