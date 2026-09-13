@@ -1,0 +1,3 @@
+tvscreener>=0.4.0
+pandas>=1.3.0
+requests>=2.27.1
