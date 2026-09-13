@@ -5,11 +5,9 @@ def fetch_universe():
     """Fetches market data from TradingView for Pakistan stocks."""
     ss = StockScreener()
     
-    # Set the market directly using the Market enum
     try:
         ss.set_markets(Market.PAKISTAN)
-    except AttributeError:
-        # Fallback if Market.PAKISTAN is not available in your library version
+    except Exception:
         pass
 
     # Request available fields from StockField
@@ -30,6 +28,15 @@ def normalize(df, target_tickers=None):
     if df is None or df.empty:
         return []
 
+    df = df.copy()
+
+    # Identify a single primary ticker column to prevent duplicate 'Ticker' columns
+    primary_ticker_col = None
+    for candidate in ["Symbol", "Ticker", "Name"]:
+        if candidate in df.columns:
+            primary_ticker_col = candidate
+            break
+
     # Dynamic column mapping to standard names (handles suffixes like '(1D)')
     column_mapping = {}
     for col in df.columns:
@@ -39,7 +46,7 @@ def normalize(df, target_tickers=None):
             column_mapping[col] = "SMA50"
         elif "Simple Moving Average (200)" in col:
             column_mapping[col] = "SMA200"
-        elif col in ["Symbol", "Name", "Ticker"]:
+        elif col == primary_ticker_col:
             column_mapping[col] = "Ticker"
         elif "Change" in col:
             column_mapping[col] = "Change"
@@ -50,10 +57,21 @@ def normalize(df, target_tickers=None):
 
     df = df.rename(columns=column_mapping)
 
+    # Ensure no duplicate columns exist in memory
+    df = df.loc[:, ~df.columns.duplicated()]
+
     # Filter to KMI-30 tickers if provided
     if target_tickers and "Ticker" in df.columns:
-        # Strip prefixes like 'PSX:' or 'PAKISTAN:' if present
-        df["Ticker_Clean"] = df["Ticker"].astype(str).apply(lambda x: x.split(":")[-1].upper().strip())
-        df = df[df["Ticker_Clean"].isin([t.upper().strip() for t in target_tickers])]
+        # Use vectorized pandas string accessors
+        df["Ticker_Clean"] = (
+            df["Ticker"]
+            .astype(str)
+            .str.split(":")
+            .str[-1]
+            .str.upper()
+            .str.strip()
+        )
+        target_set = {t.upper().strip() for t in target_tickers}
+        df = df[df["Ticker_Clean"].isin(target_set)]
 
     return df.to_dict(orient="records")
